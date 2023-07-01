@@ -78,6 +78,7 @@ Params:
   - chartName - String - Optional - Name of the chart used when said chart is deployed as a subchart.
   - context - Context - Required - Parent context.
   - failOnNew - Boolean - Optional - Default to true. If set to false, skip errors adding new keys to existing secrets.
+  - failUpgradeWhenPasswordNotFound - Boolean - Optional - Default to true. If set to false, skip blocking upgrades for newly defined secrets which are missing in Secret and in values
 The order in which this function returns a secret password:
   1. Already existing 'Secret' resource
      (If a 'Secret' resource is found under the name provided to the 'secret' parameter to this function and that 'Secret' resource contains a key with the name passed as the 'key' parameter to this function then the value of this existing secret password will be returned)
@@ -107,6 +108,10 @@ The order in which this function returns a secret password:
   {{- $password = $providedPasswordValue | toString | b64enc | quote }}
 {{- else }}
 
+  {{- $failUpgradeWhenPasswordNotFound := default true .failUpgradeWhenPasswordNotFound }}
+
+  {{- if .failUpgradeWhenPasswordNotFound }}
+
   {{- if .context.Values.enabled }}
     {{- $subchart = $chartName }}
   {{- end -}}
@@ -115,6 +120,8 @@ The order in which this function returns a secret password:
   {{- $requiredPasswordError := include "common.validations.values.single.empty" $requiredPassword -}}
   {{- $passwordValidationErrors := list $requiredPasswordError -}}
   {{- include "common.errors.upgrade.passwords.empty" (dict "validationErrors" $passwordValidationErrors "context" $.context) -}}
+
+  {{- end }}
 
   {{- if .strong }}
     {{- $subStr := list (lower (randAlpha 1)) (randNumeric 1) (upper (randAlpha 1)) | join "_" }}
@@ -127,6 +134,7 @@ The order in which this function returns a secret password:
 {{- end -}}
 {{- printf "%s" $password -}}
 {{- end -}}
+
 
 {{/*
 Reuses the value from an existing secret, otherwise sets its value to a default value.
